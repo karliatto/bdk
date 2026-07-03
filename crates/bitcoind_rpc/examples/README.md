@@ -12,8 +12,8 @@
 
 2. Set bitcoind env variables.
    ```
-   export RPC_URL=127.0.0.1:38332
-   export RPC_COOKIE=/tmp/signet/bitcoind/signet/.cookie
+   export RPC_URL=127.0.0.1:18443
+   export RPC_COOKIE=/home/user/proyectos/bitcoin-dev-env/test/bitcoin/regtest/.cookie
    ```
 3. Run `filter_iter` example.
    ```
