@@ -11,21 +11,23 @@ use bdk_chain::{BlockId, ConfirmationBlockTime, IndexedTxGraph, SpkIterator};
 use bdk_testenv::anyhow;
 
 // This example shows how BDK chain and tx-graph structures are updated using compact
-// filters syncing. Assumes a connection can be made to a bitcoin node via environment
-// variables `RPC_URL` and `RPC_COOKIE`.
+// filters syncing. Assumes a connection can be made to a bitcoin node via a ContextVM
+// MCP-over-Nostr server, configured with environment variables `SERVER_PUBKEY` and
+// `RELAY_URL` (the latter defaults to `ws://localhost:10547`).
 
 // Usage: `cargo run -p bdk_bitcoind_rpc --example filter_iter`
 
 const EXTERNAL: &str = "tr([83737d5e/86'/1'/0']tpubDDR5GgtoxS8fJyjjvdahN4VzV5DV6jtbcyvVXhEKq2XtpxjxBXmxH3r8QrNbQqHg4bJM1EGkxi7Pjfkgnui9jQWqS7kxHvX6rhUeriLDKxz/0/*)";
 const INTERNAL: &str = "tr([83737d5e/86'/1'/0']tpubDDR5GgtoxS8fJyjjvdahN4VzV5DV6jtbcyvVXhEKq2XtpxjxBXmxH3r8QrNbQqHg4bJM1EGkxi7Pjfkgnui9jQWqS7kxHvX6rhUeriLDKxz/1/*)";
 const SPK_COUNT: u32 = 25;
-const NETWORK: Network = Network::Signet;
+const NETWORK: Network = Network::Regtest;
 
-const START_HEIGHT: u32 = 205_000;
-const START_HASH: &str = "0000002bd0f82f8c0c0f1e19128f84c938763641dba85c44bdb6aed1678d16cb";
+const START_HEIGHT: u32 = 20;
+const START_HASH: &str = "76ca30d3f54fd45bb37822c3ade3f6a602631457f69615619dd87421e4a2bec1";
 
 fn main() -> anyhow::Result<()> {
     // Setup receiving chain and graph structures.
+
     let secp = Secp256k1::new();
     let (descriptor, _) = Descriptor::parse_descriptor(&secp, EXTERNAL)?;
     let (change_descriptor, _) = Descriptor::parse_descriptor(&secp, INTERNAL)?;
@@ -46,10 +48,14 @@ fn main() -> anyhow::Result<()> {
     let _ = chain.insert_block(block)?;
 
     // Configure RPC client
-    let url = std::env::var("RPC_URL").context("must set RPC_URL")?;
-    let cookie = std::env::var("RPC_COOKIE").context("must set RPC_COOKIE")?;
-    let rpc_client =
-        bitcoincore_rpc::Client::new(&url, bitcoincore_rpc::Auth::CookieFile(cookie.into()))?;
+    let server_pubkey = "7807ffe23010b8961a1e1aecb1cbf82b58e7cf99401cbb7874b73e21b1b12629".to_string();
+    let relay_url =
+        std::env::var("RELAY_URL").unwrap_or_else(|_| "ws://localhost:10547".to_string());
+    let rpc_client = bitcoincore_rpc::Client::new(vec![relay_url], server_pubkey)?;
+
+    // Diagnostic: dump the server's advertised tools and their input schemas.
+    rpc_client.dump_tool_schemas()?;
+
 
     // Initialize `FilterIter`
     let mut spks = vec![];
